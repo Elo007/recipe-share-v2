@@ -16,7 +16,7 @@ export default function RecipeCardCompact({ recipe }) {
     <Link to={`/recipes/${recipe.id}`} className={`rte-card cat-${recipe.category}`}>
       <div className="rte-card-img-wrap">
         <img
-          src={recipe.image_url || 'https://images.unsplash.com/photo-1495195134817-aeb325a55b65?w=600'}
+          src={recipe.image_url || 'https://picsum.photos/seed/recipeplaceholder/600/600'}
           alt={recipe.title}
           loading="lazy"
         />

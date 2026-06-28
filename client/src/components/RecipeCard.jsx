@@ -13,7 +13,7 @@ export default function RecipeCard({ recipe }) {
       <div className="recipe-card-img-wrap">
         <img
           className="recipe-card-img"
-          src={recipe.image_url || 'https://images.unsplash.com/photo-1495195134817-aeb325a55b65?w=600'}
+          src={recipe.image_url || 'https://picsum.photos/seed/recipeplaceholder/600/600'}
           alt={recipe.title}
           loading="lazy"
         />

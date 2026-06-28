@@ -28,7 +28,7 @@ export default function HeroCarousel({ recipes }) {
       onMouseLeave={() => setPaused(false)}
     >
       <img
-        src={recipe.image_url || 'https://images.unsplash.com/photo-1495195134817-aeb325a55b65?w=1400'}
+        src={recipe.image_url || 'https://picsum.photos/seed/recipeplaceholder/1400/900'}
         alt={recipe.title}
       />
       <div className="rte-hero-overlay">

@@ -146,7 +146,7 @@ export default function RecipeDetail() {
       <div className={`recipe-detail cat-${recipe.category}`}>
         <img
           className="recipe-detail-hero"
-          src={recipe.image_url || 'https://images.unsplash.com/photo-1495195134817-aeb325a55b65?w=1200'}
+          src={recipe.image_url || 'https://picsum.photos/seed/recipeplaceholder/1200/800'}
           alt={recipe.title}
         />
         <div className="recipe-detail-body">
