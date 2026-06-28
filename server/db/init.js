@@ -1,10 +1,23 @@
 // Sets up the SQLite database for RecipeShare v2 and seeds a much bigger
 // catalog of recipes, including a mix of free and paid ones.
+// Sets up the SQLite database for RecipeShare v2 and seeds a much bigger
+// catalog of recipes, including a mix of free and paid ones.
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 
 const dbPath = path.join(__dirname, 'recipeshare.db');
+
+// Setting RESET_DB=true wipes the existing database before seeding, useful
+// the first time you add real API keys (Pexels, Stripe) and want the seed
+// data regenerated with them. Leave this unset on normal deploys, it
+// otherwise wipes real signups, posted recipes, and purchases every time.
+if (process.env.RESET_DB === 'true' && fs.existsSync(dbPath)) {
+  fs.unlinkSync(dbPath);
+  console.log('RESET_DB is set, deleted existing database.');
+}
+
 const db = new DatabaseSync(dbPath);
 
 db.exec(`
