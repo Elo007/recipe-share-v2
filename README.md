@@ -53,6 +53,49 @@ npm run dev
 ```
 Runs on `http://localhost:5173`.
 
+## Setting up real recipe photos (Pexels)
+
+By default, recipes get a generic stock-photo placeholder (via Picsum) that
+always loads but doesn't actually match the dish. To get real, relevant
+food photos instead:
+
+1. Go to **pexels.com/api**, sign up (instant, no waiting period)
+2. Copy your API key from the dashboard
+3. In `server/`, create a file called `.env` with:
+   ```
+   PEXELS_API_KEY=your_actual_key_here
+   ```
+4. **If you already have an existing deployed database** (which you do, if
+   you deployed before adding this key), the seed script won't touch it by
+   default, it only seeds an empty database, to avoid accidentally wiping
+   real signups or recipes on every deploy. To force a one-time fresh
+   reseed with the new photos, add a temporary environment variable on
+   your backend:
+   ```
+   RESET_DB=true
+   ```
+   Trigger a redeploy, check the logs to confirm it says "RESET_DB is set,
+   deleted existing database" and shows real photos being found, then
+   **remove that environment variable again** afterward so future deploys
+   don't keep wiping your data.
+
+   If you're running locally instead, simpler to just delete the file directly:
+   ```
+   cd server
+   rm db/recipeshare.db
+   node db/init.js
+   ```
+
+You'll see each recipe logged as it seeds, showing whether it found a real
+photo or fell back to a placeholder. This only runs once, at seeding time,
+the live app doesn't depend on Pexels being available afterward, the photo
+URLs it found get stored permanently in the database.
+
+Note: Pexels returns a real, relevant stock photo for the dish (e.g.
+searching "Tiramisu" returns an actual tiramisu photo), but it won't be a
+photo of your exact recipe, since it's pulling from Pexels' general photo
+library, not generating something custom.
+
 ## Setting up Stripe (test mode)
 
 The app works without this, you just can't actually complete a purchase
@@ -107,7 +150,7 @@ with sessions.
 2. Render → New → Web Service → root directory `server`
 3. Build command: `npm install && node db/init.js`
 4. Start command: `npm start`
-5. Add environment variables: `STRIPE_SECRET_KEY`, `NODE_ENV=production`,
+5. Add environment variables: `STRIPE_SECRET_KEY`, `PEXELS_API_KEY`, `NODE_ENV=production`,
    `FRONTEND_URL` (you'll fill this in after step 2 below), and optionally
    `SESSION_SECRET`
 6. Deploy, copy the resulting URL
