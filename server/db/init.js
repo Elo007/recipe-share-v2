@@ -2,9 +2,20 @@
 // catalog of recipes, including a mix of free and paid ones.
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 
 const dbPath = path.join(__dirname, 'recipeshare.db');
+
+// Setting RESET_DB=true wipes the existing database before seeding, useful
+// the first time you add real API keys (Pexels, Stripe) and want the seed
+// data regenerated with them. Leave this unset on normal deploys, it
+// otherwise wipes real signups, posted recipes, and purchases every time.
+if (process.env.RESET_DB === 'true' && fs.existsSync(dbPath)) {
+  fs.unlinkSync(dbPath);
+  console.log('RESET_DB is set, deleted existing database.');
+}
+
 const db = new DatabaseSync(dbPath);
 
 db.exec(`
@@ -127,7 +138,14 @@ db.exec(`
 
 const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
 
-if (userCount === 0) {
+async function seed() {
+  if (userCount !== 0) {
+    console.log('Database already has data, skipping seed.');
+    db.close();
+    console.log('Database ready at', dbPath);
+    return;
+  }
+
   console.log('Seeding demo data...');
 
   const insertUser = db.prepare(
@@ -154,15 +172,39 @@ if (userCount === 0) {
   );
   const insertStep = db.prepare('INSERT INTO steps (recipe_id, step_number, instruction) VALUES (?, ?, ?)');
 
-  // Unsplash hotlinking by photo ID is not reliable long-term, individual
-  // photos can be removed by their owner, which breaks the link forever.
-  // Picsum's seed-based URLs are designed for exactly this use case: the
-  // same seed always returns the same image, indefinitely, no API key,
-  // no expiry. Each recipe's title is used as its seed so the placeholder
-  // is at least consistent and unique per recipe.
-  function placeholderImage(seed) {
-    const cleanSeed = seed.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return `https://picsum.photos/seed/${cleanSeed}/800/800`;
+  // Looks up a real food photo on Pexels matching the recipe, falling back
+  // to a stable Picsum placeholder if Pexels isn't configured or the
+  // request fails for any reason. This runs once at seed time, the
+  // resulting URL gets stored in the database like any other field, so the
+  // running app never depends on Pexels being available.
+  const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
+
+  function cleanSearchTerm(title) {
+    // Strip marketing words that don't help an image search ("Classic",
+    // "Restaurant-Style", "From Scratch") and keep the actual food noun.
+    return title
+      .replace(/\b(Classic|Restaurant-Style|From Scratch|No-Knead|Spatchcock)\b/gi, '')
+      .replace(/\(.*?\)/g, '')
+      .trim();
+  }
+
+  async function fetchFoodPhoto(title) {
+    const fallback = `https://picsum.photos/seed/${title.toLowerCase().replace(/[^a-z0-9]/g, '')}/800/800`;
+    if (!PEXELS_API_KEY) return fallback;
+
+    try {
+      const query = encodeURIComponent(cleanSearchTerm(title));
+      const res = await fetch(`https://api.pexels.com/v1/search?query=${query}&per_page=1&orientation=square`, {
+        headers: { Authorization: PEXELS_API_KEY },
+      });
+      if (!res.ok) return fallback;
+      const data = await res.json();
+      const photo = data.photos && data.photos[0];
+      return photo ? photo.src.large : fallback;
+    } catch (err) {
+      console.error(`Pexels lookup failed for "${title}":`, err.message);
+      return fallback;
+    }
   }
 
   const recipesData = [
@@ -373,9 +415,11 @@ if (userCount === 0) {
   ];
 
   for (const r of recipesData) {
+    const imageUrl = await fetchFoodPhoto(r.title);
+    console.log(`  ${r.title} -> ${imageUrl.includes('pexels') ? 'real photo' : 'placeholder'}`);
     const recipe = insertRecipe.run(
       r.userId, r.title, r.description, r.category, r.cuisine, r.cookTime, r.servings,
-      r.difficulty, placeholderImage(r.title), r.isPaid ? 1 : 0, r.price, r.calories, r.protein, r.carbs, r.fat
+      r.difficulty, imageUrl, r.isPaid ? 1 : 0, r.price, r.calories, r.protein, r.carbs, r.fat
     );
     const recipeId = recipe.lastInsertRowid;
     r.ingredients.forEach(([name, amount], idx) => {
@@ -403,9 +447,13 @@ if (userCount === 0) {
   insertComment.run(6, david, null, 'These are now a permanent weekend tradition in my house.');
 
   console.log(`Seeded ${recipesData.length} recipes from ${users.length} users.`);
-} else {
-  console.log('Database already has data, skipping seed.');
+
+  db.close();
+  console.log('Database ready at', dbPath);
 }
 
-db.close();
-console.log('Database ready at', dbPath);
+seed().catch((err) => {
+  console.error('Seeding failed:', err);
+  db.close();
+  process.exit(1);
+});
