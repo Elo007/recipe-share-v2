@@ -1,5 +1,7 @@
 // Sets up the SQLite database for RecipeShare v2 and seeds a much bigger
 // catalog of recipes, including a mix of free and paid ones.
+// Sets up the SQLite database for RecipeShare v2 and seeds a much bigger
+// catalog of recipes, including a mix of free and paid ones.
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
