@@ -1,7 +1,5 @@
 // Sets up the SQLite database for RecipeShare v2 and seeds a much bigger
 // catalog of recipes, including a mix of free and paid ones.
-// Sets up the SQLite database for RecipeShare v2 and seeds a much bigger
-// catalog of recipes, including a mix of free and paid ones.
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
@@ -449,6 +447,18 @@ async function seed() {
   insertComment.run(6, david, null, 'These are now a permanent weekend tradition in my house.');
 
   console.log(`Seeded ${recipesData.length} recipes from ${users.length} users.`);
+
+  // Two specific Pexels photo IDs from the search API turned out to be
+  // broken on Pexels' own CDN ("Invalid source image"), even though the
+  // API call itself succeeded. Replaced with manually verified, working
+  // Pexels photo URLs for just these two recipes.
+  const manualPhotoFixes = [
+    { title: 'Carne Asada Tacos', url: 'https://images.pexels.com/photos/14179985/pexels-photo-14179985.jpeg' },
+    { title: 'Cinnamon Rolls with Cream Cheese Icing', url: 'https://images.pexels.com/photos/35312900/pexels-photo-35312900.jpeg' },
+  ];
+  for (const fix of manualPhotoFixes) {
+    db.prepare('UPDATE recipes SET image_url = ? WHERE title = ?').run(fix.url, fix.title);
+  }
 
   db.close();
   console.log('Database ready at', dbPath);
